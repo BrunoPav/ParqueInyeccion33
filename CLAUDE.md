@@ -17,8 +17,8 @@ romper el modelo actual.
 
 - **Backend**: Java 17 + Spring Boot 4.1 (package by feature, con capas dentro de cada feature)
 - **Frontend**: Flutter + Riverpod (arquitectura limpia)
-- **Base de datos desarrollo**: H2 en memoria
-- **Base de datos producción**: PostgreSQL (el driver ya está en el `pom.xml`)
+- **Base de datos**: PostgreSQL 17 en Docker (`docker-compose.yml`), mismo motor en desarrollo y producción
+- **Herramienta de inspección**: pgAdmin en `localhost:5050`, servicio con profile `tools`
 - **Despliegue**: Docker + nube (proveedor a definir)
 
 ---
@@ -130,7 +130,7 @@ como el manejo de errores) vive en `common/`, porque no pertenece a ninguna feat
 |---|---|
 | Package by feature, no por capa | todo lo de una entidad junto; escala mejor al crecer las features |
 | Cross-cutting concerns en `common/` | el manejo de errores no pertenece a ninguna feature |
-| PK `Long` + `GenerationType.IDENTITY` | funciona igual en cualquier motor sin configurar secuencias |
+| PK `Long` + `GenerationType.SEQUENCE` (`allocationSize = 50`) | en Postgres permite batch inserts: Hibernate reserva un bloque de ids y no necesita un viaje por fila. Costo aceptado: huecos en los ids, irrelevante en una clave subrogada |
 | `JpaRepository`, no `CrudRepository` | el proyecto ya está comprometido con JPA; la portabilidad sería teórica |
 | Inyección por constructor | dependencias explícitas, campo `final`, test sin levantar Spring |
 | DTO como `record`, uno solo por entidad | cero boilerplate y cero dependencias; separar request/response sería YAGNI hoy |
@@ -138,14 +138,14 @@ como el manejo de errores) vive en `common/`, porque no pertenece a ninguna feat
 | Mapeo manual en `ClienteMapper`, no MapStruct | con pocas entidades y pocos campos el mapeo a mano es proporcional y explícito |
 | Excepción de dominio unchecked + `@RestControllerAdvice` | la traducción a 404 vive en un solo lugar; unchecked además dispara el rollback de `@Transactional` |
 | Validación con Bean Validation en el DTO | evita duplicar la misma regla en el Service (pendiente de implementar) |
-| H2 en memoria en desarrollo | aislar variables: verificar el código antes de sumar la incógnita de la infraestructura |
-| `ddl-auto=create-drop` solo en desarrollo | en producción van migraciones versionadas (Flyway/Liquibase) |
+| PostgreSQL en Docker desde el arranque | paridad dev/prod; el dialecto lo autodetecta Hibernate. H2 se usó solo como paso intermedio para aislar variables (verificar el código antes de sumar infraestructura) |
+| `ddl-auto=update` solo en desarrollo | en producción van migraciones versionadas (Flyway/Liquibase) |
+| `spring.jpa.open-in-view=false` | el Service expone solo DTOs, así que ninguna asociación perezosa llega a la capa web: OSIV no aporta nada y enmascararía problemas de N+1 |
+| Batching activo (`batch_size=25`, `order_inserts`, `order_updates`) | `SEQUENCE` **habilita** el batching pero no lo enciende; sin estas properties el beneficio sería solo potencial |
 
 **Decisiones abiertas**
 
-- `spring.jpa.open-in-view`: sin definir. Va a importar al modelar `Vehiculo` con `@OneToMany`.
-- `IDENTITY` vs `SEQUENCE`: `IDENTITY` se eligió porque SQLite no maneja secuencias, y SQLite ya no está
-  en el proyecto. Revisar al migrar a PostgreSQL, donde `SEQUENCE` permite batch inserts.
+- Ninguna pendiente.
 
 ---
 
@@ -167,22 +167,18 @@ La aplicación arranca con H2 en memoria y los 6 endpoints de `cliente` funciona
 
 ## Próximos pasos
 
-1. **Migrar a PostgreSQL**: instalar Docker Desktop, armar un `docker-compose.yml` con Postgres y cambiar
-   las properties (el driver ya está en el pom; Hibernate detecta el dialecto solo). Ahí retomar la
-   discusión `IDENTITY` vs `SEQUENCE`.
-2. **Decidir `spring.jpa.open-in-view`.**
-3. **Agregar validación**: `spring-boot-starter-validation` al `pom.xml` (⚠️ **no viene incluido** en el
+1. **Agregar validación**: `spring-boot-starter-validation` al `pom.xml` (⚠️ **no viene incluido** en el
    starter web desde Spring Boot 2.3 — sin la dependencia las anotaciones se ignoran en silencio),
    `@NotBlank`/`@Size` en `ClienteDTO`, `@Valid` en el Controller, y un `@ExceptionHandler` para
    `MethodArgumentNotValidException` → 400.
-4. **Modelar `Vehiculo` y `Servicio`** con sus relaciones (`@ManyToOne` / `@OneToMany`).
-5. **Tests de `ClienteService`** (la inyección por constructor lo hace trivial).
+2. **Modelar `Vehiculo` y `Servicio`** con sus relaciones (`@ManyToOne` / `@OneToMany`).
+3. **Tests de `ClienteService`** (la inyección por constructor lo hace trivial).
 
 ## Orden de construcción del proyecto
 
-1. ~~Modelo de datos y base de datos~~ (H2 en memoria, hecho)
+1. ~~Modelo de datos y base de datos~~ (hecho)
 2. Backend con Spring Boot — **en curso**
-3. Migrar a PostgreSQL con Docker Compose
+3. ~~Migrar a PostgreSQL con Docker Compose~~ (hecho)
 4. Frontend en Flutter consumiendo la API vía endpoints REST
-5. Dockerizar y desplegar
+5. Dockerizar la aplicación y desplegar
 6. Documentar en paralelo el uso de IA en cada etapa
