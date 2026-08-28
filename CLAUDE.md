@@ -31,7 +31,7 @@ Los tipos son los que genera Hibernate a partir de las anotaciones JPA — el es
 
 | Columna | Tipo | Detalle |
 |---|---|---|
-| id | BIGINT | PK, `GenerationType.IDENTITY` |
+| id | BIGINT | PK, `GenerationType.SEQUENCE` (`allocationSize = 50`) |
 | nombre | VARCHAR(100) | NOT NULL |
 | contacto | VARCHAR(100) | Teléfono o email |
 
@@ -39,18 +39,23 @@ Los tipos son los que genera Hibernate a partir de las anotaciones JPA — el es
 
 | Columna | Tipo | Detalle |
 |---|---|---|
-| id | BIGINT | PK, `GenerationType.IDENTITY` |
+| id | BIGINT | PK, `GenerationType.SEQUENCE` (`allocationSize = 50`) |
 | marca | VARCHAR(50) | NOT NULL |
 | modelo | VARCHAR(50) | NOT NULL |
+| anio | INTEGER | NOT NULL. Rango válido vía Bean Validation, no vía `length` |
 | patente | VARCHAR(10) | NOT NULL, UNIQUE |
-| kilometraje | INTEGER | DEFAULT 0 |
-| cliente_id | BIGINT | FK → clientes.id |
+| kilometraje | INTEGER | NOT NULL, default `0` en Java |
+| cliente_id | BIGINT | FK → clientes.id, NOT NULL |
+
+Relación con `Cliente`: **unidireccional** (`@ManyToOne(fetch = LAZY)` en `Vehiculo`; `Cliente` no tiene
+la colección). Los vehículos de un cliente se obtienen con una query del repository, no navegando una
+colección en memoria.
 
 ### Tabla `servicios` (planificada)
 
 | Columna | Tipo | Detalle |
 |---|---|---|
-| id | BIGINT | PK, `GenerationType.IDENTITY` |
+| id | BIGINT | PK, `GenerationType.SEQUENCE` (`allocationSize = 50`) |
 | fecha | DATE | NOT NULL |
 | descripcion | TEXT | NOT NULL |
 | costo | DECIMAL(10,2) | `BigDecimal` en Java |
@@ -142,6 +147,12 @@ como el manejo de errores) vive en `common/`, porque no pertenece a ninguna feat
 | `ddl-auto=update` solo en desarrollo | en producción van migraciones versionadas (Flyway/Liquibase) |
 | `spring.jpa.open-in-view=false` | el Service expone solo DTOs, así que ninguna asociación perezosa llega a la capa web: OSIV no aporta nada y enmascararía problemas de N+1 |
 | Batching activo (`batch_size=25`, `order_inserts`, `order_updates`) | `SEQUENCE` **habilita** el batching pero no lo enciende; sin estas properties el beneficio sería solo potencial |
+| `VehiculoDTO` plano con `clienteId`, no un `ClienteDTO` anidado | simetría entrada/salida (el POST solo necesita el id) y cero problemas de lazy: `getCliente().getId()` no dispara la carga. Se separará request/response solo si el frontend pide el nombre del dueño en un listado |
+| Mapper **puro**: recibe la entidad relacionada ya resuelta | inyectarle el repository lo obligaría a hacer I/O y a decidir una regla de negocio. El mapper convierte, el Service decide |
+| `RecursoExistente` → `409 Conflict` | una patente duplicada es un error **del cliente**, no del servidor: sin manejo explícito la violación de constraint saldría como 500 |
+| **Borrado lógico** en `Cliente` (`activo`), no `DELETE` físico | el sistema es un **historial**: borrar un cliente destruiría la trazabilidad de qué auto trajo quién. Decidido, **pendiente de implementar** |
+| Activar/desactivar vía **`PATCH`**, no `DELETE` | `DELETE` mentiría (el recurso sigue existiendo) y no puede expresar la **reactivación**; con `PATCH` activar y desactivar son la misma operación con distinto valor |
+| La visibilidad de un `Vehiculo` se **deriva** del `activo` de su cliente | un flag propio en `Vehiculo` no tendría uso real hoy, y **cascadear el flag destruiría información**: al reactivar no se podría distinguir "inactivo por su dueño" de "inactivo por sí mismo". Se agregará si aparece el caso de dar de baja un vehículo con el cliente activo |
 
 **Decisiones abiertas**
 
@@ -151,28 +162,35 @@ como el manejo de errores) vive en `common/`, porque no pertenece a ninguna feat
 
 ## Estado del proyecto
 
-La aplicación arranca con H2 en memoria y los 6 endpoints de `cliente` funcionan, verificados uno por uno.
+La aplicación corre sobre PostgreSQL en Docker. Los 6 endpoints de `cliente` están verificados uno por uno.
 
 | Paquete | Archivos | Estado |
 |---|---|---|
-| `cliente/` | entidad, repository, service, DTO, mapper, controller | CRUD REST completo |
-| `common/` | excepción de dominio, `ErrorRespuesta`, `@RestControllerAdvice` | hecho |
-| `vehiculo/` | — | sin modelar |
+| `cliente/` | entidad, repository, service, DTO, mapper, controller | CRUD REST completo y verificado |
+| `common/` | `RecursoNoEncontradoException` (404), `RecursoExistente` (409), `ErrorRespuesta`, `@RestControllerAdvice` | hecho |
+| `vehiculo/` | entidad, repository, service, DTO, mapper, controller | escrito y compilando — **falta probar los endpoints** |
 | `servicio/` | — | sin modelar |
+
+Rama de trabajo actual: `feature_vehiculo`.
 
 **Defectos conocidos**
 
-- Ninguno pendiente. El status del DELETE (`204`) y el typo `remplazarCliente` quedaron corregidos y
-  verificados con la aplicación corriendo.
+- Ninguno pendiente en `cliente/`.
+- `vehiculo/` sin verificar contra la aplicación corriendo.
 
 ## Próximos pasos
 
-1. **Agregar validación**: `spring-boot-starter-validation` al `pom.xml` (⚠️ **no viene incluido** en el
+0. **Commitear `feature_vehiculo`** y mergear a `main`.
+1. **Modelar `Servicio`** (`@ManyToOne` a `Vehiculo`) — prioridad actual: cerrar el modelo de datos.
+2. **Implementar el borrado lógico de `Cliente`**: campo `activo` (agregar la columna a mano con
+   `DEFAULT true`, porque ya hay filas), endpoint `PATCH`, parámetro `?activo=` en el listado para que el
+   frontend pueda ver los inactivos, y **filtrar por `activo` en todas las consultas** (el costo real del
+   soft delete: si se olvida en una, los inactivos reaparecen).
+3. **Agregar validación**: `spring-boot-starter-validation` al `pom.xml` (⚠️ **no viene incluido** en el
    starter web desde Spring Boot 2.3 — sin la dependencia las anotaciones se ignoran en silencio),
-   `@NotBlank`/`@Size` en `ClienteDTO`, `@Valid` en el Controller, y un `@ExceptionHandler` para
-   `MethodArgumentNotValidException` → 400.
-2. **Modelar `Vehiculo` y `Servicio`** con sus relaciones (`@ManyToOne` / `@OneToMany`).
-3. **Tests de `ClienteService`** (la inyección por constructor lo hace trivial).
+   `@NotBlank`/`@Size` en los DTOs, `@Valid` en los Controllers, y un `@ExceptionHandler` para
+   `MethodArgumentNotValidException` → 400. Incluye el rango de `anio` en `VehiculoDTO` (`@Min`/`@Max`).
+4. **Tests de los services** (la inyección por constructor lo hace trivial).
 
 ## Orden de construcción del proyecto
 

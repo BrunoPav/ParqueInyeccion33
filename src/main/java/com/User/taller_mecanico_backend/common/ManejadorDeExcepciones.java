@@ -16,4 +16,12 @@ public class ManejadorDeExcepciones {
                 .status(HttpStatus.NOT_FOUND)
                 .body(new ErrorRespuesta(404, ex.getMessage(), Instant.now()));
     }
+
+    @ExceptionHandler(RecursoExistente.class)
+    public ResponseEntity<ErrorRespuesta> existenteException(RecursoExistente ex) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(new ErrorRespuesta(409, ex.getMessage(), Instant.now()));
+    }
+
 }
