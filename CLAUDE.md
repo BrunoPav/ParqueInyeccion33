@@ -58,7 +58,7 @@ colección en memoria.
 | id | BIGINT | PK, `GenerationType.SEQUENCE` (`allocationSize = 50`) |
 | fecha | DATE | NOT NULL |
 | descripcion | TEXT | NOT NULL |
-| costo | DECIMAL(10,2) | `BigDecimal` en Java |
+| precio | DECIMAL(10,2) | `BigDecimal` en Java — nunca `Double`. Es lo que se le **cobra al cliente**; el costo interno del taller sería otro campo |
 | vehiculo_id | BIGINT | FK → vehiculos.id |
 
 **Relaciones**: cliente 1→N vehículos, vehículo 1→N servicios.
@@ -168,29 +168,37 @@ La aplicación corre sobre PostgreSQL en Docker. Los 6 endpoints de `cliente` es
 |---|---|---|
 | `cliente/` | entidad, repository, service, DTO, mapper, controller | CRUD REST completo y verificado |
 | `common/` | `RecursoNoEncontradoException` (404), `RecursoExistente` (409), `ErrorRespuesta`, `@RestControllerAdvice` | hecho |
-| `vehiculo/` | entidad, repository, service, DTO, mapper, controller | escrito y compilando — **falta probar los endpoints** |
-| `servicio/` | — | sin modelar |
+| `vehiculo/` | entidad, repository, service, DTO, mapper, controller | CRUD REST completo y verificado |
+| `servicio/` | entidad, repository, service, DTO, mapper, controller | CRUD REST completo y verificado |
 
-Rama de trabajo actual: `feature_vehiculo`.
+**El modelo de datos está cerrado**: las tres entidades y las dos relaciones
+(`Cliente` 1→N `Vehiculo` 1→N `Servicio`) están implementadas y probadas endpoint por endpoint.
+
+Rama de trabajo actual: `feature_servicio`.
+
+**Convenciones que aplican a las tres features**
+
+- Filtrar una colección por el id de su padre devuelve **404 si el padre no existe**, y `200` con `[]`
+  si el padre existe pero no tiene hijos.
+- El mapper navega la relación (`entidad.getCliente().getId()`); las entidades **no** exponen helpers
+  del tipo `getClienteId()`: cada entidad expone solo su propio estado.
 
 **Defectos conocidos**
 
-- Ninguno pendiente en `cliente/`.
-- `vehiculo/` sin verificar contra la aplicación corriendo.
+- Ninguno pendiente.
 
 ## Próximos pasos
 
-0. **Commitear `feature_vehiculo`** y mergear a `main`.
-1. **Modelar `Servicio`** (`@ManyToOne` a `Vehiculo`) — prioridad actual: cerrar el modelo de datos.
-2. **Implementar el borrado lógico de `Cliente`**: campo `activo` (agregar la columna a mano con
+0. **Commitear `feature_servicio`** y mergear a `main`.
+1. **Implementar el borrado lógico de `Cliente`**: campo `activo` (agregar la columna a mano con
    `DEFAULT true`, porque ya hay filas), endpoint `PATCH`, parámetro `?activo=` en el listado para que el
    frontend pueda ver los inactivos, y **filtrar por `activo` en todas las consultas** (el costo real del
    soft delete: si se olvida en una, los inactivos reaparecen).
-3. **Agregar validación**: `spring-boot-starter-validation` al `pom.xml` (⚠️ **no viene incluido** en el
+2. **Agregar validación**: `spring-boot-starter-validation` al `pom.xml` (⚠️ **no viene incluido** en el
    starter web desde Spring Boot 2.3 — sin la dependencia las anotaciones se ignoran en silencio),
    `@NotBlank`/`@Size` en los DTOs, `@Valid` en los Controllers, y un `@ExceptionHandler` para
    `MethodArgumentNotValidException` → 400. Incluye el rango de `anio` en `VehiculoDTO` (`@Min`/`@Max`).
-4. **Tests de los services** (la inyección por constructor lo hace trivial).
+3. **Tests de los services** (la inyección por constructor lo hace trivial).
 
 ## Orden de construcción del proyecto
 

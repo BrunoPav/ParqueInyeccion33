@@ -107,7 +107,4 @@ public class Vehiculo {
         return id;
     }
 
-    public Long getClienteId() {
-        return cliente != null ? cliente.getId() : null;
-    }
 }

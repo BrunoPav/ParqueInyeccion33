@@ -77,6 +77,9 @@ public class VehiculoService {
     }
 
     public List<VehiculoDTO> listarPorCliente(Long clienteId) {
+        if (!clienteRepository.existsById(clienteId)) {
+            throw new RecursoNoEncontradoException("Cliente", clienteId);
+        }
         return vehiculoRepository.findByCliente_Id(clienteId)
                 .stream()
                 .map(vehiculoMapper::toDto)
