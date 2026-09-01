@@ -23,8 +23,8 @@ public class ClienteService {
         return clienteMapper.toDto(guardado);
     }
 
-    public List<ClienteDTO> listarClientes() {
-        return clienteRepository.findAll()
+    public List<ClienteDTO> listarClientes(boolean activo) {
+        return clienteRepository.findByActivo(activo)
                 .stream()
                 .map(clienteMapper::toDto)
                 .toList();
@@ -36,18 +36,19 @@ public class ClienteService {
         return clienteMapper.toDto(cliente);
     }
 
-    public List<ClienteDTO> buscarClientesPorNombre(String nombre) {
-        return clienteRepository.findByNombre(nombre)
+    public List<ClienteDTO> buscarClientesPorNombre(String nombre, boolean activo) {
+        return clienteRepository.findByNombreAndActivo(nombre, activo)
                 .stream()
                 .map(clienteMapper::toDto)
                 .toList();
     }
 
-    public void eliminarCliente(Long id) {
-        if (!clienteRepository.existsById(id)) {
-            throw new RecursoNoEncontradoException("Cliente", id);
-        }
-        clienteRepository.deleteById(id);
+    public ClienteDTO cambiarEstadoCliente(Long id, boolean activo) {
+        Cliente cliente = clienteRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Cliente", id));
+        cliente.setActivo(activo);
+        Cliente actualizado = clienteRepository.save(cliente);
+        return clienteMapper.toDto(actualizado);
     }
 
     public ClienteDTO reemplazarCliente(Long id, ClienteDTO dto) {

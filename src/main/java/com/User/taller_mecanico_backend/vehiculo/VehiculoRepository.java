@@ -15,4 +15,6 @@ public interface VehiculoRepository  extends JpaRepository<Vehiculo, Long> {
 
     boolean existsByPatenteAndIdNot(String patente, Long id);
 
+    List<Vehiculo> findByCliente_ActivoTrue();
+
 }

@@ -23,12 +23,16 @@ public class Cliente {
     @Column(length = 100)
     private String contacto;
 
+    @Column(nullable = false)
+    private boolean activo;
+
     protected Cliente() {
     }
 
     public Cliente(String nombre, String contacto) {
         this.nombre = nombre;
         this.contacto = contacto;
+        this.activo = true;
     }
 
     public Long getId() {
@@ -50,4 +54,14 @@ public class Cliente {
     public void setContacto(String contacto) {
         this.contacto = contacto;
     }
+
+    public void setActivo(boolean activo) {
+        this.activo = activo;
+    }
+
+    public boolean isActivo() {
+        return activo;
+    }
+
+
 }

@@ -10,6 +10,6 @@ public class ClienteMapper {
     }
 
     public ClienteDTO toDto(Cliente cliente){
-        return new ClienteDTO(cliente.getId(), cliente.getNombre(), cliente.getContacto());
+        return new ClienteDTO(cliente.getId(), cliente.getNombre(), cliente.getContacto(), cliente.isActivo());
     }
 }

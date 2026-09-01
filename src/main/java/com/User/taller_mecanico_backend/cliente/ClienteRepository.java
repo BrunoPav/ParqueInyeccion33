@@ -6,6 +6,8 @@ import java.util.List;
 
 public interface ClienteRepository extends JpaRepository<Cliente, Long> {
     
-    public List<Cliente> findByNombre(String nombre); 
+    public List<Cliente> findByActivo(boolean activo);
+
+    public List<Cliente> findByNombreAndActivo(String nombre, boolean activo);
     
 }

@@ -150,7 +150,9 @@ como el manejo de errores) vive en `common/`, porque no pertenece a ninguna feat
 | `VehiculoDTO` plano con `clienteId`, no un `ClienteDTO` anidado | simetría entrada/salida (el POST solo necesita el id) y cero problemas de lazy: `getCliente().getId()` no dispara la carga. Se separará request/response solo si el frontend pide el nombre del dueño en un listado |
 | Mapper **puro**: recibe la entidad relacionada ya resuelta | inyectarle el repository lo obligaría a hacer I/O y a decidir una regla de negocio. El mapper convierte, el Service decide |
 | `RecursoExistente` → `409 Conflict` | una patente duplicada es un error **del cliente**, no del servidor: sin manejo explícito la violación de constraint saldría como 500 |
-| **Borrado lógico** en `Cliente` (`activo`), no `DELETE` físico | el sistema es un **historial**: borrar un cliente destruiría la trazabilidad de qué auto trajo quién. Decidido, **pendiente de implementar** |
+| **Borrado lógico** en `Cliente` (`activo`), no `DELETE` físico | el sistema es un **historial**: borrar un cliente destruiría la trazabilidad de qué auto trajo quién. `Cliente` **no tiene endpoint DELETE**; `Vehiculo` y `Servicio` sí, porque ahí el borrado físico sigue teniendo sentido |
+| El PATCH de estado es **idempotente** | aplicar dos veces "desactivar" no es un error: si la respuesta se pierde y el frontend reintenta, tiene que funcionar igual. `PUT`, `PATCH` y `DELETE` deben serlo |
+| `EstadoClienteDTO(boolean activo)` como cuerpo del PATCH | con un `ClienteDTO` completo el contrato quedaría ambiguo (¿se aplica el `nombre` que mandaron?). Un record dedicado hace que **la petición ambigua no se pueda expresar** |
 | Activar/desactivar vía **`PATCH`**, no `DELETE` | `DELETE` mentiría (el recurso sigue existiendo) y no puede expresar la **reactivación**; con `PATCH` activar y desactivar son la misma operación con distinto valor |
 | La visibilidad de un `Vehiculo` se **deriva** del `activo` de su cliente | un flag propio en `Vehiculo` no tendría uso real hoy, y **cascadear el flag destruiría información**: al reactivar no se podría distinguir "inactivo por su dueño" de "inactivo por sí mismo". Se agregará si aparece el caso de dar de baja un vehículo con el cliente activo |
 
@@ -180,6 +182,13 @@ Rama de trabajo actual: `feature_servicio`.
 
 - Filtrar una colección por el id de su padre devuelve **404 si el padre no existe**, y `200` con `[]`
   si el padre existe pero no tiene hijos.
+- **Visibilidad y borrado lógico:** los **listados generales** (`/api/vehiculos`, `/api/servicios`)
+  excluyen lo que cuelga de un cliente inactivo; las **búsquedas por id** y los **listados por padre
+  explícito** (`?clienteId=`, `?vehiculoId=`) devuelven igual. El criterio: si no pediste nada en
+  particular, se muestra lo relevante; si pediste algo puntual, se entrega.
+- El filtro por `activo` viaja **en la firma del método derivado** (`findByActivo`,
+  `findByCliente_ActivoTrue`), nunca en un `findAll()` que después se filtre a mano: así es imposible
+  olvidarlo. **No queda ningún `findAll()` en el proyecto.**
 - El mapper navega la relación (`entidad.getCliente().getId()`); las entidades **no** exponen helpers
   del tipo `getClienteId()`: cada entidad expone solo su propio estado.
 
@@ -189,16 +198,11 @@ Rama de trabajo actual: `feature_servicio`.
 
 ## Próximos pasos
 
-0. **Commitear `feature_servicio`** y mergear a `main`.
-1. **Implementar el borrado lógico de `Cliente`**: campo `activo` (agregar la columna a mano con
-   `DEFAULT true`, porque ya hay filas), endpoint `PATCH`, parámetro `?activo=` en el listado para que el
-   frontend pueda ver los inactivos, y **filtrar por `activo` en todas las consultas** (el costo real del
-   soft delete: si se olvida en una, los inactivos reaparecen).
-2. **Agregar validación**: `spring-boot-starter-validation` al `pom.xml` (⚠️ **no viene incluido** en el
+1. **Agregar validación**: `spring-boot-starter-validation` al `pom.xml` (⚠️ **no viene incluido** en el
    starter web desde Spring Boot 2.3 — sin la dependencia las anotaciones se ignoran en silencio),
    `@NotBlank`/`@Size` en los DTOs, `@Valid` en los Controllers, y un `@ExceptionHandler` para
    `MethodArgumentNotValidException` → 400. Incluye el rango de `anio` en `VehiculoDTO` (`@Min`/`@Max`).
-3. **Tests de los services** (la inyección por constructor lo hace trivial).
+2. **Tests de los services** (la inyección por constructor lo hace trivial).
 
 ## Orden de construcción del proyecto
 

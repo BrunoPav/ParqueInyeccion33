@@ -30,7 +30,7 @@ public class ServicioService {
     }
 
     public List<ServicioDTO> listarServicios() {
-        return servicioRepository.findAll()
+        return servicioRepository.findByVehiculo_Cliente_ActivoTrue()
                 .stream()
                 .map(servicioMapper::toDto)
                 .toList();

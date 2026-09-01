@@ -34,7 +34,7 @@ public class VehiculoService {
     }
 
     public List<VehiculoDTO> listarVehiculos() {
-        return vehiculoRepository.findAll()
+        return vehiculoRepository.findByCliente_ActivoTrue()
                 .stream()
                 .map(vehiculoMapper::toDto)
                 .toList();
