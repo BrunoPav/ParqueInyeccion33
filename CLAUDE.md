@@ -142,7 +142,9 @@ como el manejo de errores) vive en `common/`, porque no pertenece a ninguna feat
 | El Service expone DTOs, no entidades | límite de encapsulamiento más fuerte que convertir en el Controller |
 | Mapeo manual en `ClienteMapper`, no MapStruct | con pocas entidades y pocos campos el mapeo a mano es proporcional y explícito |
 | Excepción de dominio unchecked + `@RestControllerAdvice` | la traducción a 404 vive en un solo lugar; unchecked además dispara el rollback de `@Transactional` |
-| Validación con Bean Validation en el DTO | evita duplicar la misma regla en el Service (pendiente de implementar) |
+| Validación con Bean Validation en el DTO | evita duplicar la misma regla en el Service. **No reemplaza** las restricciones de la base: la base garantiza, la validación comunica temprano y con un mensaje claro |
+| Formato de error propio (`ErrorRespuesta`) y no `ProblemDetail` | consistencia entre los tres códigos (400, 404, 409) con lo ya construido. El estándar sería **RFC 7807** (`application/problem+json`), que Spring soporta con `ProblemDetail`; se usaría si la API fuera pública o de cara a terceros |
+| Mensajes de validación cortos, sin repetir el campo | el handler ya antepone `campo + ": "`, así que un mensaje que repita el nombre queda redundante (`nombre: es obligatorio`, no `nombre: el nombre es obligatorio`) |
 | PostgreSQL en Docker desde el arranque | paridad dev/prod; el dialecto lo autodetecta Hibernate. H2 se usó solo como paso intermedio para aislar variables (verificar el código antes de sumar infraestructura) |
 | `ddl-auto=update` solo en desarrollo | en producción van migraciones versionadas (Flyway/Liquibase) |
 | `spring.jpa.open-in-view=false` | el Service expone solo DTOs, así que ninguna asociación perezosa llega a la capa web: OSIV no aporta nada y enmascararía problemas de N+1 |
@@ -164,12 +166,13 @@ como el manejo de errores) vive en `common/`, porque no pertenece a ninguna feat
 
 ## Estado del proyecto
 
-La aplicación corre sobre PostgreSQL en Docker. Los 6 endpoints de `cliente` están verificados uno por uno.
+La aplicación corre sobre PostgreSQL en Docker, con borrado lógico y validación de entrada.
+Todos los endpoints están verificados uno por uno con la aplicación corriendo.
 
 | Paquete | Archivos | Estado |
 |---|---|---|
-| `cliente/` | entidad, repository, service, DTO, mapper, controller | CRUD REST completo y verificado |
-| `common/` | `RecursoNoEncontradoException` (404), `RecursoExistente` (409), `ErrorRespuesta`, `@RestControllerAdvice` | hecho |
+| `cliente/` | entidad, repository, service, DTO, `EstadoClienteDTO`, mapper, controller | CRUD REST + borrado lógico, verificado |
+| `common/` | `RecursoNoEncontradoException` (404), `RecursoExistente` (409), `ErrorRespuesta`, `@RestControllerAdvice` con los tres handlers (400/404/409) | hecho |
 | `vehiculo/` | entidad, repository, service, DTO, mapper, controller | CRUD REST completo y verificado |
 | `servicio/` | entidad, repository, service, DTO, mapper, controller | CRUD REST completo y verificado |
 
@@ -198,11 +201,8 @@ Rama de trabajo actual: `feature_servicio`.
 
 ## Próximos pasos
 
-1. **Agregar validación**: `spring-boot-starter-validation` al `pom.xml` (⚠️ **no viene incluido** en el
-   starter web desde Spring Boot 2.3 — sin la dependencia las anotaciones se ignoran en silencio),
-   `@NotBlank`/`@Size` en los DTOs, `@Valid` en los Controllers, y un `@ExceptionHandler` para
-   `MethodArgumentNotValidException` → 400. Incluye el rango de `anio` en `VehiculoDTO` (`@Min`/`@Max`).
-2. **Tests de los services** (la inyección por constructor lo hace trivial).
+1. **Tests de los services** (la inyección por constructor lo hace trivial: `new ClienteService(mock, mapper)`).
+2. Frontend en Flutter — etapa 4 del proyecto.
 
 ## Orden de construcción del proyecto
 

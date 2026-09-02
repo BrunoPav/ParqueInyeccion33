@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/servicios")
 public class ServicioController {
@@ -38,14 +40,14 @@ public class ServicioController {
     }
 
     @PostMapping
-    public ResponseEntity<ServicioDTO> crearServicio(@RequestBody ServicioDTO dto) {
+    public ResponseEntity<ServicioDTO> crearServicio(@Valid @RequestBody ServicioDTO dto) {
         ServicioDTO servicio = servicioService.crearServicio(dto);
         return ResponseEntity.created(URI.create("/api/servicios/" + servicio.id()))
                 .body(servicio);
     }
     
     @PutMapping("/{id}")
-    public ServicioDTO reemplazarServicio(@PathVariable Long id, @RequestBody ServicioDTO dto) {
+    public ServicioDTO reemplazarServicio(@PathVariable Long id,@Valid @RequestBody ServicioDTO dto) {
         return servicioService.reemplazarServicio(id, dto);
     }
 

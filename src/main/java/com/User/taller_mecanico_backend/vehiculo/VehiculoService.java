@@ -70,7 +70,7 @@ public class VehiculoService {
         vehiculoRepository.deleteById(id);
     }
 
-    public VehiculoDTO buscarVehiculoPorPatente(String patente) {
+    public VehiculoDTO buscarPorPatente(String patente) {
         Vehiculo vehiculo = vehiculoRepository.findByPatente(patente)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Vehiculo", "patente", patente));
         return vehiculoMapper.toDto(vehiculo);

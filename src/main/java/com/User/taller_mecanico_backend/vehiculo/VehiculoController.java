@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/vehiculos")
 public class VehiculoController {
@@ -37,15 +39,20 @@ public class VehiculoController {
         return vehiculoService.buscarVehiculoPorId(id);
     }
 
+    @GetMapping(params = "patente")
+    public VehiculoDTO obtenerPorPatente(@RequestParam String patente) {
+        return vehiculoService.buscarPorPatente(patente);
+    }
+
     @PostMapping
-    public ResponseEntity<VehiculoDTO> crearVehiculo(@RequestBody VehiculoDTO dto) {
+    public ResponseEntity<VehiculoDTO> crearVehiculo(@Valid @RequestBody VehiculoDTO dto) {
         VehiculoDTO vehiculo = vehiculoService.crearVehiculo(dto);
         return ResponseEntity.created(URI.create("/api/vehiculos/" + vehiculo.id()))
                 .body(vehiculo);
     }
 
     @PutMapping("/{id}")
-    public VehiculoDTO reemplazarVehiculo(@PathVariable Long id, @RequestBody VehiculoDTO dto) {
+    public VehiculoDTO reemplazarVehiculo(@PathVariable Long id,@Valid @RequestBody VehiculoDTO dto) {
         return vehiculoService.reemplazarVehiculo(id, dto);
     }
 
