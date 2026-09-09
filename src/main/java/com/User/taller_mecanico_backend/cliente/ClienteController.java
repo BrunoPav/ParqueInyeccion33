@@ -52,7 +52,7 @@ public class ClienteController {
     }
 
     @PatchMapping("/{id}")
-    public ClienteDTO cambiarEstadoCliente(@PathVariable Long id, @RequestBody EstadoClienteDTO estadoClienteDTO) {
+    public ClienteDTO cambiarEstadoCliente(@PathVariable Long id, @Valid @RequestBody EstadoClienteDTO estadoClienteDTO) {
         return clienteService.cambiarEstadoCliente(id, estadoClienteDTO.activo());
     }
 

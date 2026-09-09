@@ -30,7 +30,7 @@ public class ManejadorDeExcepciones {
     public ResponseEntity<ErrorRespuesta> validacionFallida (MethodArgumentNotValidException ex) {
         String mensaje = ex.getBindingResult().getFieldErrors()
         .stream()
-        .map(error -> error.getField() + " " + error.getDefaultMessage())
+        .map(error -> error.getField() + ":" + error.getDefaultMessage())
         .collect(Collectors.joining("; "));
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)

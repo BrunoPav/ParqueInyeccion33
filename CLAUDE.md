@@ -157,10 +157,21 @@ como el manejo de errores) vive en `common/`, porque no pertenece a ninguna feat
 | `EstadoClienteDTO(boolean activo)` como cuerpo del PATCH | con un `ClienteDTO` completo el contrato quedaría ambiguo (¿se aplica el `nombre` que mandaron?). Un record dedicado hace que **la petición ambigua no se pueda expresar** |
 | Activar/desactivar vía **`PATCH`**, no `DELETE` | `DELETE` mentiría (el recurso sigue existiendo) y no puede expresar la **reactivación**; con `PATCH` activar y desactivar son la misma operación con distinto valor |
 | La visibilidad de un `Vehiculo` se **deriva** del `activo` de su cliente | un flag propio en `Vehiculo` no tendría uso real hoy, y **cascadear el flag destruiría información**: al reactivar no se podría distinguir "inactivo por su dueño" de "inactivo por sí mismo". Se agregará si aparece el caso de dar de baja un vehículo con el cliente activo |
+| `Dockerfile` **multi-etapa** (build con Maven+JDK → runtime con JRE) | la imagen final no lleva compilador, Maven ni código fuente: ~250 MB en vez de ~1 GB y menos superficie de ataque. Costo: `Dockerfile` más largo |
+| Copiar `pom.xml` y bajar dependencias **antes** de copiar `src/` | Docker invalida capas en cascada; con el orden inverso, cambiar una línea de Java re-descargaría todas las dependencias en cada build |
+| Imagen `maven:` en vez del wrapper `mvnw` | evita el fallo por finales de línea CRLF al ejecutar `mvnw` dentro de Linux, y `maven-wrapper.jar` está en `.gitignore` |
+| Base `eclipse-temurin:17-jre`, no Alpine ni distroless | Alpine usa `musl` (riesgo con librerías nativas) y distroless no trae shell para debuggear. Se cambiaría si el tamaño pasara a importar |
+| Usuario **no-root** (`spring`) en la imagen | por defecto el contenedor corre como root; un usuario sin privilegios limita el daño ante una ejecución de código |
+| `ENTRYPOINT` en forma **exec**, no shell | así la JVM es el PID 1 y recibe el `SIGTERM` de `docker stop`: con la forma shell la señal se la queda `/bin/sh` y el apagado ordenado de Spring nunca corre |
+| Configuración por **variables de entorno** con default de desarrollo (`${VAR:default}`) | ninguna credencial de producción vive en el repositorio, y la app corre sin configurar nada en local. Alternativa descartada: perfiles de Spring por entorno, innecesario con tan pocas properties |
+| `server.port=${PORT:8080}` | los PaaS asignan el puerto por la variable `PORT` y no dejan elegirlo; sin esto la app quedaría inalcanzable al desplegar |
+| Sin JAR en capas (`layertools`) | optimiza el redeploy incremental, pero suma complejidad para un problema que este proyecto todavía no tiene. YAGNI |
+| **Los DTO de entrada usan wrappers (`Boolean`, `Integer`, `Long`), nunca primitivos** | un primitivo no puede representar "campo ausente": Jackson recibe `null`, no puede asignarlo y rechaza el request entero con un `400` genérico, sin decir qué campo falló. Con wrapper, un campo opcional se omite sin drama y uno obligatorio se marca con `@NotNull` y devuelve el mensaje claro del handler. Peor aún sería silenciar el error con `fail-on-null-for-primitives=false`: un `PATCH {}` se convertiría en `activo=false` y **desactivaría un cliente sin que nadie lo pidiera** |
+| Formato del mensaje de validación: `campo:` + mensaje | los mensajes de los DTO ya empiezan con espacio (`" es obligatorio"`), así que el handler concatena con `":"` y no con `" "`. Con `" "` salía doble espacio (`nombre  es obligatorio`) |
 
 **Decisiones abiertas**
 
-- Ninguna pendiente.
+- Proveedor de nube para el despliegue.
 
 ---
 
@@ -179,7 +190,10 @@ Todos los endpoints están verificados uno por uno con la aplicación corriendo.
 **El modelo de datos está cerrado**: las tres entidades y las dos relaciones
 (`Cliente` 1→N `Vehiculo` 1→N `Servicio`) están implementadas y probadas endpoint por endpoint.
 
-Rama de trabajo actual: `feature_servicio`.
+| tests | `ClienteServiceTest` (3), `VehiculoServiceTest` (2), `VehiculoRepositoryTest` (2, `@DataJpaTest`), `contextLoads` | 8 tests en verde, corren con H2 sin Docker |
+| infraestructura | `Dockerfile` multi-etapa, `.dockerignore`, servicio `app` en `docker-compose.yml` | verificado: imagen construida (~250 MB), stack levantado y 9 endpoints probados dentro de Docker |
+
+Rama de trabajo actual: `main`.
 
 **Convenciones que aplican a las tres features**
 
@@ -201,8 +215,10 @@ Rama de trabajo actual: `feature_servicio`.
 
 ## Próximos pasos
 
-1. **Tests de los services** (la inyección por constructor lo hace trivial: `new ClienteService(mock, mapper)`).
-2. Frontend en Flutter — etapa 4 del proyecto.
+1. **Desplegar en la nube** — etapa 5, adelantada respecto del roadmap original: el backend no
+   depende del frontend, y tener la URL pública antes evita desarrollar Flutter contra `localhost`.
+2. `README.md` para el repositorio: qué es, modelo de datos, tabla de endpoints y decisiones técnicas.
+3. Frontend en Flutter — etapa 4 del proyecto.
 
 ## Orden de construcción del proyecto
 

@@ -1,0 +1,14 @@
+target/
+.git/
+.gitignore
+
+# Se compila con la imagen maven:, no con el wrapper.
+.mvn/
+mvnw
+mvnw.cmd
+
+*.md
+.vscode/
+.idea/
+docker-compose.yml
+Dockerfile

@@ -1,3 +1,4 @@
 package com.User.taller_mecanico_backend.cliente;
 
-public record EstadoClienteDTO(boolean activo) {}
+import jakarta.validation.constraints.NotNull;
+public record EstadoClienteDTO(@NotNull(message = " es obligatorio") Boolean activo) {}

@@ -1,4 +1,19 @@
 services:
+  app:
+    build: .
+    container_name: taller-app
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tallerdb
+      SPRING_DATASOURCE_USERNAME: taller
+      SPRING_DATASOURCE_PASSWORD: taller
+      SPRING_JPA_SHOW_SQL: "false"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:17-alpine
     container_name: taller-postgres
