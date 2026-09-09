@@ -17,9 +17,9 @@ romper el modelo actual.
 
 - **Backend**: Java 17 + Spring Boot 4.1 (package by feature, con capas dentro de cada feature)
 - **Frontend**: Flutter + Riverpod (arquitectura limpia)
-- **Base de datos**: PostgreSQL 17 en Docker (`docker-compose.yml`), mismo motor en desarrollo y producción
+- **Base de datos**: PostgreSQL 18 en Docker (`docker-compose.yml`), mismo motor y versión en desarrollo y producción (Neon)
 - **Herramienta de inspección**: pgAdmin en `localhost:5050`, servicio con profile `tools`
-- **Despliegue**: Docker + nube (proveedor a definir)
+- **Despliegue**: Docker + Render (app) + Neon (PostgreSQL) — https://parqueinyeccion33.onrender.com
 
 ---
 
@@ -146,6 +146,7 @@ como el manejo de errores) vive en `common/`, porque no pertenece a ninguna feat
 | Formato de error propio (`ErrorRespuesta`) y no `ProblemDetail` | consistencia entre los tres códigos (400, 404, 409) con lo ya construido. El estándar sería **RFC 7807** (`application/problem+json`), que Spring soporta con `ProblemDetail`; se usaría si la API fuera pública o de cara a terceros |
 | Mensajes de validación cortos, sin repetir el campo | el handler ya antepone `campo + ": "`, así que un mensaje que repita el nombre queda redundante (`nombre: es obligatorio`, no `nombre: el nombre es obligatorio`) |
 | PostgreSQL en Docker desde el arranque | paridad dev/prod; el dialecto lo autodetecta Hibernate. H2 se usó solo como paso intermedio para aislar variables (verificar el código antes de sumar infraestructura) |
+| PostgreSQL **18** local y en la nube (no 17) | Neon (el proveedor elegido) provisionó el proyecto en 18; se subió la versión local en vez de forzar 17 en Neon, para no romper la paridad dev/prod. Sin impacto: el esquema no usa nada específico de versión y Hibernate autodetecta el dialecto igual |
 | `ddl-auto=update` solo en desarrollo | en producción van migraciones versionadas (Flyway/Liquibase) |
 | `spring.jpa.open-in-view=false` | el Service expone solo DTOs, así que ninguna asociación perezosa llega a la capa web: OSIV no aporta nada y enmascararía problemas de N+1 |
 | Batching activo (`batch_size=25`, `order_inserts`, `order_updates`) | `SEQUENCE` **habilita** el batching pero no lo enciende; sin estas properties el beneficio sería solo potencial |
@@ -169,9 +170,11 @@ como el manejo de errores) vive en `common/`, porque no pertenece a ninguna feat
 | **Los DTO de entrada usan wrappers (`Boolean`, `Integer`, `Long`), nunca primitivos** | un primitivo no puede representar "campo ausente": Jackson recibe `null`, no puede asignarlo y rechaza el request entero con un `400` genérico, sin decir qué campo falló. Con wrapper, un campo opcional se omite sin drama y uno obligatorio se marca con `@NotNull` y devuelve el mensaje claro del handler. Peor aún sería silenciar el error con `fail-on-null-for-primitives=false`: un `PATCH {}` se convertiría en `activo=false` y **desactivaría un cliente sin que nadie lo pidiera** |
 | Formato del mensaje de validación: `campo:` + mensaje | los mensajes de los DTO ya empiezan con espacio (`" es obligatorio"`), así que el handler concatena con `":"` y no con `" "`. Con `" "` salía doble espacio (`nombre  es obligatorio`) |
 
+| Proveedor de nube: **Render** (app) + **Neon** (base) | ninguno de los dos duerme la base a los 30 días como el Postgres gratuito de Render, apto para un link de portfolio. Costo: dos registros y dos dashboards en vez de uno. Ambos en la misma región (`us-east-2`/Ohio) para no pagar latencia de red entre app y base en cada query |
+
 **Decisiones abiertas**
 
-- Proveedor de nube para el despliegue.
+- Ninguna pendiente.
 
 ---
 
@@ -192,6 +195,7 @@ Todos los endpoints están verificados uno por uno con la aplicación corriendo.
 
 | tests | `ClienteServiceTest` (3), `VehiculoServiceTest` (2), `VehiculoRepositoryTest` (2, `@DataJpaTest`), `contextLoads` | 8 tests en verde, corren con H2 sin Docker |
 | infraestructura | `Dockerfile` multi-etapa, `.dockerignore`, servicio `app` en `docker-compose.yml` | verificado: imagen construida (~250 MB), stack levantado y 9 endpoints probados dentro de Docker |
+| despliegue | Render (app, plan free) + Neon (PostgreSQL 18, `us-east-2`) | **en producción**: https://parqueinyeccion33.onrender.com, verificado con 4 endpoints (200/404/201/400) contra la base real |
 
 Rama de trabajo actual: `main`.
 
@@ -215,10 +219,10 @@ Rama de trabajo actual: `main`.
 
 ## Próximos pasos
 
-1. **Desplegar en la nube** — etapa 5, adelantada respecto del roadmap original: el backend no
-   depende del frontend, y tener la URL pública antes evita desarrollar Flutter contra `localhost`.
-2. `README.md` para el repositorio: qué es, modelo de datos, tabla de endpoints y decisiones técnicas.
-3. Frontend en Flutter — etapa 4 del proyecto.
+1. `README.md` para el repositorio: qué es, modelo de datos, tabla de endpoints, decisiones técnicas
+   y el link al deploy.
+2. Frontend en Flutter — etapa 4 del proyecto. El backend ya no depende de esto: tiene URL pública
+   estable (https://parqueinyeccion33.onrender.com) para desarrollar contra ella en vez de `localhost`.
 
 ## Orden de construcción del proyecto
 

@@ -15,7 +15,7 @@ services:
         condition: service_healthy
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     container_name: taller-postgres
     restart: unless-stopped
     environment:
@@ -25,7 +25,9 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # Postgres 18+ espera el volumen un nivel arriba de /data: adentro
+      # organiza los datos en subcarpetas por version mayor.
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U taller -d tallerdb"]
       interval: 5s
