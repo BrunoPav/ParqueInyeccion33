@@ -37,6 +37,7 @@ public class AutenticacionController {
 
         return new TokenDTO(
                 jwtService.generarToken(usuario.getNombreUsuario(), usuario.getRol()),
-                usuario.getNombreUsuario());
+                usuario.getNombreUsuario(),
+                usuario.getRol());
     }
 }
