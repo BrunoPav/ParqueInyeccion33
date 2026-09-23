@@ -20,7 +20,8 @@ public class UsuarioService {
         if (usuarioRepository.existsByNombreUsuario(dto.nombreUsuario())) {
             throw new RecursoExistente("Usuario", "nombre de usuario", dto.nombreUsuario());
         }
-        Usuario usuario = new Usuario(dto.nombreUsuario(), passwordEncoder.encode(dto.contrasena()));
+        Usuario usuario = new Usuario(
+                dto.nombreUsuario(), passwordEncoder.encode(dto.contrasena()), Rol.DEMO);
         Usuario guardado = usuarioRepository.save(usuario);
         return new UsuarioDTORespuesta(guardado.getNombreUsuario());
     }

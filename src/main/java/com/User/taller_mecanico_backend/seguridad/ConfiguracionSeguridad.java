@@ -40,6 +40,7 @@ public class ConfiguracionSeguridad {
                 .authorizeHttpRequests(reglas -> reglas
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole(Rol.ADMIN.name())
                         .anyRequest().authenticated())
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())

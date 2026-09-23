@@ -50,7 +50,53 @@ cliente/    vehiculo/    servicio/    common/
 - Filtrar una colección por el id de su padre devuelve **404 si el padre no existe**, `200` con `[]` si
   existe pero no tiene hijos.
 
+## Autenticación
+
+**Lecturas públicas, escrituras autenticadas.** Cerrar la API entera dejaría la demo invisible; dejarla
+abierta permitiría que cualquiera borre los datos.
+
+| Operación | Quién puede |
+|---|---|
+| `GET` | cualquiera, sin credenciales |
+| `POST`, `PUT`, `PATCH` | con token |
+| `DELETE` | con token y rol `ADMIN` |
+
+### Credenciales de demostración
+
+Son **públicas a propósito**, para que cualquiera pueda probar el flujo completo:
+
+```
+usuario:     demo
+contraseña:  demo1234
+```
+
+Ese usuario puede crear y editar, pero **no borrar**. Las credenciales de `ADMIN` viven solo en las
+variables de entorno del servidor.
+
+```bash
+# 1. Obtener el token
+curl -X POST https://parqueinyeccion33.onrender.com/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"nombreUsuario":"demo","contrasena":"demo1234"}'
+
+# 2. Usarlo
+curl -X POST https://parqueinyeccion33.onrender.com/api/clientes \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <token>' \
+  -d '{"nombre":"Juan Perez","contacto":"11-2233-4455"}'
+```
+
+Las contraseñas se guardan hasheadas con BCrypt. El token es un **JWT** firmado, con una hora de validez;
+la API es *stateless*, no guarda sesión en el servidor.
+
+Un login fallido devuelve siempre el mismo `401`, sin distinguir si el usuario no existe o si la contraseña
+es incorrecta: lo contrario permitiría enumerar usuarios válidos.
+
 ## Endpoints
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/auth/login` | Devuelve el JWT — público |
 
 Formato de error uniforme en 400/404/409: `{ "status", "mensaje", "timestamp" }`.
 

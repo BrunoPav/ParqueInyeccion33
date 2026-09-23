@@ -32,10 +32,10 @@ public class Usuario {
     protected Usuario() {
     }
 
-    public Usuario(String nombreUsuario, String contrasena) {
+    public Usuario(String nombreUsuario, String contrasena, Rol rol) {
         this.nombreUsuario = nombreUsuario;
         this.contrasena = contrasena;
-        this.rol = Rol.ADMIN;
+        this.rol = rol;
     }
 
     public Long getId() {
