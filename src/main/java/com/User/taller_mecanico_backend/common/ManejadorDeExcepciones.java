@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -24,6 +25,13 @@ public class ManejadorDeExcepciones {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(new ErrorRespuesta(409, ex.getMessage(), Instant.now()));
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorRespuesta> credencialesInvalidas(AuthenticationException ex) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorRespuesta(401, "Credenciales invalidas", Instant.now()));
     }
 
     @ExceptionHandler (MethodArgumentNotValidException.class)
